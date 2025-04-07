@@ -24,6 +24,10 @@ jobs:
         service-account: ${{ secrets.SERVICE_ACCOUNT_ID }}
         environment: |
           PRODUCTION_TOKEN=${{ secrets.PRODUCTION_TOKEN }}
+          YDB_DATABASE=${{ secrets.YDB_DATABASE }}
+          YDB_ENDPOINT=${{ secrets.YDB_ENDPOINT }}
+          YDB_SERVICE_ACCOUNT_TOKEN=${{ secrets.YDB_SERVICE_ACCOUNT_TOKEN }}
+          YDB_SERVICE_ACCOUNT_TOKEN_ID=${{ secrets.YDB_SERVICE_ACCOUNT_TOKEN_ID }}
         include: |
           **/*.py
           **/*.json
