@@ -3,5 +3,5 @@ def handler():
 
 def foo():
   a = 2
-  b = 3
+  b = 4
   return a+b
