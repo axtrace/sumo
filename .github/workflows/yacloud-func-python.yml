@@ -24,12 +24,6 @@ jobs:
         service-account: ${{ secrets.SERVICE_ACCOUNT_ID }}
         environment: |
           PRODUCTION_TOKEN=${{ secrets.PRODUCTION_TOKEN }}
-          TEST_TOKEN=${{ secrets.TEST_TOKEN }}
-          YDB_DATABASE=${{ secrets.YDB_DATABASE }}
-          YDB_ENDPOINT=${{ vars.YDB_ENDPOINT }}
-          AWS_SECRET_ACCESS_KEY = ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_ACCESS_KEY_ID = ${{ secrets.AWS_ACCESS_KEY_ID }}
-          BUCKET_NAME = ${{ secrets.BUCKET_NAME }}
         include: |
           **/*.py
           **/*.json
