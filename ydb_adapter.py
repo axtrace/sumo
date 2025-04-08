@@ -5,6 +5,7 @@ import json
 import uuid
 from datetime import datetime
 from typing import Dict, Any
+from telebot import types
 
 class YdbAdapter:
     def __init__(self):
