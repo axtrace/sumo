@@ -67,7 +67,11 @@ def summarize(message: types.Message):
 
     # Суммирование сообщений
     summary = gpt.summarize(chat_history)
-
+    
+    if not summary:
+        bot.reply_to(message, "Не удалось сгенерировать summary")
+        return
+    
     # Отправка суммирования
     bot.reply_to(message, summary)
 
