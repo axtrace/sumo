@@ -1,93 +1,76 @@
 import os
 import ydb
 import ydb.iam
-from typing import Dict, Any, List, Optional
-from datetime import datetime
 import json
+from datetime import datetime
+from typing import Dict, List, Any
 
 class YdbAdapter:
-    """connection to YDB"""
-
+    """Connection to YDB"""
+    
     def __init__(self):
-        # Create driver in global space.
-        driver = ydb.Driver(
+        # Create driver
+        self.driver = ydb.Driver(
             endpoint=os.getenv('YDB_ENDPOINT'),
             database=os.getenv('YDB_DATABASE'),
-            # credentials=ydb.iam.MetadataUrlCredentials(),
-            # root_certificates=ydb.load_ydb_root_certificate()
             credentials=ydb.AccessTokenCredentials(os.getenv('YDB_SERVICE_ACCOUNT_TOKEN'))
         )
-
-        # Wait for the driver to become active for requests.
-        driver.wait(fail_fast=True, timeout=5)
-
-        # Create the session pool instance to manage YDB sessions.
-        self.pool = ydb.SessionPool(driver)
+        
+        # Wait for the driver to become active
+        self.driver.wait(fail_fast=True, timeout=5)
+        
+        # Create session pool
+        self.pool = self.driver.table_client.session_pool()
         self.table_path = "chat_messages"
         self.message_limit = 1000
 
-    def _run_transaction(self, session, query):
-        # Create the transaction and execute query.
-        return session.transaction().execute(
-            query,
-            commit_tx=True,
-            settings=ydb.BaseRequestSettings().with_timeout(3).with_operation_timeout(2)
-        )
-
-    async def _execute_query(self, query: str, parameters: Dict = None) -> Any:
-        """Универсальный метод выполнения запросов"""
-        async def callee(session):
-            return await session.transaction().execute(
+    def _execute_query(self, query: str, parameters: Dict[str, Any] = None) -> Any:
+        """Execute query synchronously"""
+        def callee(session):
+            return session.transaction().execute(
                 query,
                 commit_tx=True,
-                parameters=parameters
+                parameters=parameters,
+                settings=ydb.BaseRequestSettings(
+                    timeout=3,
+                    operation_timeout=2
+                )
             )
-        return await self.pool.retry_operation(callee)
-    
-    async def save_message(self, chat_id: int, user_id: int, username: str, text: str, raw_data: Dict) -> None:
-        """
-        Сохраняет сообщение в YDB
-        :param chat_id: ID чата
-        :param user_id: ID пользователя
-        :param username: Имя пользователя
-        :param text: Текст сообщения
-        :param raw_data: Исходные данные сообщения в формате JSON
-        """
-        # 1. Сохраняем новое сообщение
-        insert_query = f"""
-            DECLARE $raw_json AS Json;
-            
-            UPSERT INTO `{self.table_path}`
-            (id, chat_id, user_id, username, date, text, raw)
-            VALUES (
-                CAST(RandomUuid() AS Uint64),
-                {chat_id},
-                {user_id},
-                "{username}",
-                DateTime::MakeDatetime(DateTime::Now()),
-                "{text.replace('"', '""')}",
-                $raw_json
-            );
-        """
-        
-        return await self._execute_query(insert_query, {'$raw_json': json.dumps(raw_data)})
-    
+        return self.pool.retry_operation(callee)
 
-    async def get_messages(self, chat_id: int, limit: int = 1000) -> List[Dict]:
-        """
-        Возвращает последние сообщения из указанного чата
-        :param chat_id: ID чата
-        :param limit: Максимальное количество сообщений
-        :return: Список сообщений в формате [{"id": ..., "text": ..., ...}]
-        """
-        query = f"""
-            SELECT * FROM `{self.table_path}`
-            WHERE chat_id = {chat_id}
-            ORDER BY date DESC
-            LIMIT {min(limit, self.message_limit)};
+    def save_message(self, chat_id: int, user_id: int, username: str, 
+                   text: str, raw_data: Dict[str, Any]) -> None:
+        """Save message to YDB"""
+        insert_query = f"""
+        DECLARE $raw_json AS Json;
+        
+        UPSERT INTO `{self.table_path}` (
+            id, chat_id, user_id, username, date, text, raw
+        ) VALUES (
+            CAST(RandomUuid() AS Uint64),
+            {chat_id},
+            {user_id},
+            "{username.replace('"', '""')}",
+            DateTime::MakeDatetime(DateTime::Now()),
+            "{text.replace('"', '""')}",
+            $raw_json
+        );
         """
         
-        result = await self._execute_query(query)
+        self._execute_query(insert_query, {
+            '$raw_json': json.dumps(raw_data)
+        })
+
+    def get_messages(self, chat_id: int, limit: int = 1000) -> List[Dict[str, Any]]:
+        """Get messages from chat"""
+        query = f"""
+        SELECT * FROM `{self.table_path}`
+        WHERE chat_id = {chat_id}
+        ORDER BY date DESC
+        LIMIT {min(limit, self.message_limit)};
+        """
+        
+        result = self._execute_query(query)
         return [
             {
                 "id": row["id"],
@@ -100,4 +83,3 @@ class YdbAdapter:
             }
             for row in result[0].rows
         ]
-
