@@ -6,7 +6,7 @@ from gpt_adapter import GPTAdapter
 from ybd_adapter import YdbAdapter
 
 # Инициализация бота
-TOKEN = os.environ['TOKEN']
+TOKEN = os.environ['PRODUCTION_TOKEN']
 bot = telebot.TeleBot(TOKEN)
 
 ybd = YdbAdapter()
