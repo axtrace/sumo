@@ -4,7 +4,7 @@ import ydb.iam
 import json
 import uuid
 from datetime import datetime
-from typing import Dict, Any
+from typing import Dict, Any, List
 from telebot import types
 
 class YdbAdapter:
