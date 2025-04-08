@@ -9,23 +9,28 @@ class YdbAdapter:
     """Connection to YDB"""
     
     def __init__(self):
-        # Create driver
+        # Получаем параметры подключения из переменных окружения
+        endpoint = os.getenv('YDB_ENDPOINT', 'grpcs://ydb.serverless.yandexcloud.net:2135')
+        database = os.getenv('YDB_DATABASE')
+        
+        # Используем сервисный аккаунт через IAM-токен
         self.driver = ydb.Driver(
-            endpoint=os.getenv('YDB_ENDPOINT'),
-            database=os.getenv('YDB_DATABASE'),
-            credentials=ydb.AccessTokenCredentials(os.getenv('YDB_SERVICE_ACCOUNT_TOKEN'))
+            endpoint=endpoint,
+            database=database,
+            credentials=ydb.iam.MetadataUrlCredentials()  # Автоматически получает токен из метаданных
         )
         
-        # Wait for the driver to become active
-        self.driver.wait(fail_fast=True, timeout=5)
-        
-        # Create session pool
+        try:
+            self.driver.wait(timeout=5)
+        except Exception as e:
+            print(f"Failed to initialize driver: {str(e)}")
+            raise
+
         self.pool = self.driver.table_client.session_pool()
         self.table_path = "chat_messages"
         self.message_limit = 1000
 
-    def _execute_query(self, query: str, parameters: Dict[str, Any] = None) -> Any:
-        """Execute query synchronously"""
+    def execute_query(self, query: str, parameters: Dict[str, Any] = None) -> Any:
         def callee(session):
             return session.transaction().execute(
                 query,
