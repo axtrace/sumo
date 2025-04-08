@@ -40,7 +40,7 @@ class YdbAdapter:
             raise
 
     def save_message(self, chat_id: int, user_id: int, username: str, first_name: str, last_name: str,
-                   text: str, raw_data: Dict[str, Any], message_date: datetime) -> None:
+               text: str, raw_data: Dict[str, Any], message_date: datetime) -> None:
         insert_query = """
         DECLARE $raw_json AS Json;
         DECLARE $chat_id AS Int64;
@@ -51,9 +51,9 @@ class YdbAdapter:
         DECLARE $text AS Utf8;
         DECLARE $date AS Datetime;
         DECLARE $uuid AS Utf8;
-
+    
         UPSERT INTO chat_messages (
-            id, chat_id, user_id, username, date, text, raw
+            id, chat_id, user_id, username, first_name, last_name, date, text, raw
         ) VALUES (
             CAST(Digest::CityHash($uuid) AS Int64),
             $chat_id,
