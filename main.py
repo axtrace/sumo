@@ -93,9 +93,9 @@ def save_message(message: types.Message):
         # Подготовка данных
         chat_id = message.chat.id
         user_id = message.from_user.id
-        username = message.from_user.username
+        username = message.from_user.username or ""
         first_name = getattr(message.from_user, 'first_name', '').strip()
-        last_name = getattr(message.from_user, 'first_name', '').strip()
+        last_name = getattr(message.from_user, 'last_name', '').strip()
         text = message.text or message.caption or ''
         message_date = datetime.fromtimestamp(message.date)
         
