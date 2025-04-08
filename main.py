@@ -7,13 +7,13 @@ import telebot
 
 # Импорт класса GPTAdapter
 from gpt_adapter import GPTAdapter
-from ybd_adapter import YdbAdapter
+from ydb_adapter import ydbAdapter
 
 # Инициализация бота
 TOKEN = os.environ['PRODUCTION_TOKEN']
 bot = telebot.TeleBot(TOKEN)
 
-ybd = YdbAdapter()
+ybd = ydbAdapter()
 
 MAX_CALLS = int(os.environ.get('MAX_CALLS', 10))
 
@@ -31,7 +31,7 @@ def handler(event, context):
 
 @bot.message_handler(func=lambda message: True)
 def save_message(message: types.Message):
-    """Сохраняет все входящие сообщения в YDB"""
+    """Сохраняет все входящие сообщения в ydb"""
     try:
         # Подготовка данных
         chat_id = message.chat.id
