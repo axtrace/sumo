@@ -33,11 +33,8 @@ class YdbAdapter:
     def execute_query(self, query, parameters=None):
         def callee(session):
             return self._prepare_and_execute(session, query, parameters)
-        
         try:
-            print(f"Executing query with params: {parameters}")
             result = self.pool.retry_operation_sync(callee)
-            # print("Query executed successfully")
             return result
         except Exception as e:
             # print(f"Query failed: {str(e)}")
@@ -78,14 +75,64 @@ class YdbAdapter:
             '$uuid': str(uuid.uuid4())
         }
         
-        # Добавляем отладочную информацию
-        print("Parameters before execution:")
-        for k, v in parameters.items():
-            print(f"{k}: {v} (type: {type(v)})")
-        
         try:
             self.execute_query(insert_query, parameters)
             print("Message saved successfully")
         except Exception as e:
             print(f"Failed to save message: {e}")
             raise
+
+
+    def get_messages(self, chat_id: int, limit: int = 1000) -> List[Dict[str, Any]]:
+        """Получает сообщения из указанного чата
+        
+        Args:
+            chat_id: ID чата для получения сообщений
+            limit: Максимальное количество сообщений (по умолчанию 1000)
+            
+        Returns:
+            Список сообщений в формате словарей
+        """
+        query = """
+        DECLARE $chat_id AS Int64;
+        DECLARE $limit AS Uint64;
+        
+        SELECT 
+            id,
+            chat_id,
+            user_id,
+            username,
+            date,
+            text,
+            raw
+        FROM chat_messages
+        WHERE chat_id = $chat_id
+        ORDER BY date DESC
+        LIMIT $limit;
+        """
+        
+        parameters = {
+            '$chat_id': int(chat_id),
+            '$limit': min(limit, 1000)  # Ограничиваем максимальный лимит
+        }
+        
+        try:
+            result = self.execute_query(query, parameters)
+            messages = []
+            
+            for row in result[0].rows:
+                messages.append({
+                    'id': row.id,
+                    'chat_id': row.chat_id,
+                    'user_id': row.user_id,
+                    'username': row.username,
+                    'date': datetime.fromtimestamp(row.date),  # Конвертируем timestamp обратно в datetime
+                    'text': row.text
+                })
+                
+            return messages
+            
+        except Exception as e:
+            print(f"Failed to get messages: {e}")
+            raise
+
