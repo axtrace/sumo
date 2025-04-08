@@ -13,7 +13,7 @@ from ydb_adapter import ydbAdapter
 TOKEN = os.environ['PRODUCTION_TOKEN']
 bot = telebot.TeleBot(TOKEN)
 
-ydb = ydbAdapter()
+ydb = YdbAdapter()
 
 MAX_CALLS = int(os.environ.get('MAX_CALLS', 10))
 
