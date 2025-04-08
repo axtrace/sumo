@@ -5,6 +5,8 @@ from datetime import datetime
 
 import telebot
 from telebot import types
+from telegram import Update
+from telegram.ext import ContextTypes
 
 # Импорт класса GPTAdapter
 from gpt_adapter import GPTAdapter
@@ -34,11 +36,14 @@ def handler(event, context):
 def save_message(message: types.Message):
     """Сохраняет все входящие сообщения в ydb"""
     try:
+        if not message.text or len(message.text.strip()) == 0:
+            return
         # Подготовка данных
         chat_id = message.chat.id
         user_id = message.from_user.id
-        username = message.from_user.username or \
-                  f"{message.from_user.first_name} {message.from_user.last_name or ''}".strip()
+        username = (message.from_user.username or 
+           getattr(message.from_user, 'first_name', '') + " " + 
+           getattr(message.from_user, 'last_name', '')).strip()
         text = message.text or message.caption or ''
         
         # Формирование raw-данных
@@ -58,7 +63,7 @@ def save_message(message: types.Message):
                 'title': getattr(message.chat, 'title', None),
                 'username': getattr(message.chat, 'username', None)
             },
-            'date': message.date,
+            'date': datetime.fromtimestamp(message.date).isoformat(),
             'text': text,
             'entities': [e.to_dict() for e in message.entities] if message.entities else None,
             'caption_entities': [e.to_dict() for e in message.caption_entities] if message.caption_entities else None
@@ -77,8 +82,8 @@ def save_message(message: types.Message):
         print(f"Ошибка сохранения сообщения: {str(e)}")
 
 
-@tb.message_handler(commands=['summurize', 'summary'])
-def summarize(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+@bot.message_handler(commands=['summurize', 'summary'])
+def summarize(message: types.Message):
   try:
     chat_id = update.effective_chat.id
     if chat_id not in context:
