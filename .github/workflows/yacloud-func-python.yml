@@ -20,7 +20,7 @@ jobs:
         function-name: 'sumo-bot'
         runtime: 'python312'
         memory: '256Mb'
-        entrypoint: 'index.handler'
+        entrypoint: 'main.handler'
         service-account: ${{ secrets.SERVICE_ACCOUNT_ID }}
         environment: |
           PRODUCTION_TOKEN=${{ secrets.PRODUCTION_TOKEN }}
