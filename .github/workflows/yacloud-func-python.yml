@@ -28,6 +28,7 @@ jobs:
           YDB_ENDPOINT=${{ secrets.YDB_ENDPOINT }}
           YDB_SERVICE_ACCOUNT_TOKEN=${{ secrets.YDB_SERVICE_ACCOUNT_TOKEN }}
           YDB_SERVICE_ACCOUNT_TOKEN_ID=${{ secrets.YDB_SERVICE_ACCOUNT_TOKEN_ID }}
+          YDB_SERVICE_ACCOUNT_KEY_FILE=${{ secrets.YDB_SERVICE_ACCOUNT_KEY_FILE }}
         include: |
           **/*.py
           **/*.json
