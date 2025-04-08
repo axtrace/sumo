@@ -44,6 +44,7 @@ def save_message(message: types.Message):
            getattr(message.from_user, 'first_name', '') + " " + 
            getattr(message.from_user, 'last_name', '')).strip()
         text = message.text or message.caption or ''
+        message_date = datetime.fromtimestamp(message.date)
         
         # Формирование raw-данных
         raw_data = {
@@ -74,7 +75,8 @@ def save_message(message: types.Message):
             user_id=user_id,
             username=username,
             text=text,
-            raw_data=raw_data
+            raw_data=raw_data,
+            message_date=message_date
         )
         
     except Exception as e:
