@@ -29,7 +29,7 @@ class GPTAdapter:
             "text": f"Сообщения чата:\n{messages_text}"
         }
         
-        result = self.model.run([self.system_prompt, user_message])
+        result = self.model.run(self.messages + [user_message])
         return result.alternatives[0].text
 
 
