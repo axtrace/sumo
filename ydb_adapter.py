@@ -39,13 +39,15 @@ class YdbAdapter:
             # print(f"Query failed: {str(e)}")
             raise
 
-    def save_message(self, chat_id: int, user_id: int, username: str, 
+    def save_message(self, chat_id: int, user_id: int, username: str, first_name: str, last_name: str,
                    text: str, raw_data: Dict[str, Any], message_date: datetime) -> None:
         insert_query = """
         DECLARE $raw_json AS Json;
         DECLARE $chat_id AS Int64;
         DECLARE $user_id AS Int64;
         DECLARE $username AS Utf8;
+        DECLARE $first_name AS Utf8;
+        DECLARE $last_name AS Utf8;
         DECLARE $text AS Utf8;
         DECLARE $date AS Datetime;
         DECLARE $uuid AS Utf8;
@@ -57,6 +59,8 @@ class YdbAdapter:
             $chat_id,
             $user_id,
             $username,
+            $first_name,
+            $last_name,
             $date,
             $text,
             $raw_json
@@ -69,6 +73,8 @@ class YdbAdapter:
             '$chat_id': int(chat_id),
             '$user_id': int(user_id),
             '$username': str(username),
+            '$first_name': str(first_name),
+            '$last_name': str(last_name),
             '$text': str(text),
             '$date': int(message_date.timestamp()),
             '$uuid': str(uuid.uuid4())
@@ -76,7 +82,6 @@ class YdbAdapter:
         
         try:
             self.execute_query(insert_query, parameters)
-            print("Message saved successfully")
         except Exception as e:
             print(f"Failed to save message: {e}")
             raise
@@ -101,6 +106,8 @@ class YdbAdapter:
             chat_id,
             user_id,
             username,
+            first_name,
+            last_name,
             date,
             text,
             raw
@@ -125,6 +132,8 @@ class YdbAdapter:
                     'chat_id': row.chat_id,
                     'user_id': row.user_id,
                     'username': row.username,
+                    'first_name': row.first_name,
+                    'last_name': row.last_name,
                     'date': datetime.fromtimestamp(row.date),  # Конвертируем timestamp обратно в datetime
                     'text': row.text
                 })
