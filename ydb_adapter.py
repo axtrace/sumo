@@ -11,7 +11,8 @@ class YdbAdapter:
         self.driver = ydb.Driver(
             endpoint=os.getenv('YDB_ENDPOINT'),
             database=os.getenv('YDB_DATABASE'),
-            credentials=ydb.iam.ServiceAccountCredentials.from_file(YDB_SERVICE_ACCOUNT_KEY_FILE)
+            # credentials=ydb.iam.ServiceAccountCredentials.from_file(YDB_SERVICE_ACCOUNT_KEY_FILE)
+            credentials = ydb.iam.MetadataUrlCredentials()
         )
         self.driver.wait(timeout=5, fail_fast=True)
         self.pool = ydb.SessionPool(self.driver)
