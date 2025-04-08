@@ -1,4 +1,8 @@
 import os
+import json
+from typing import Dict, Any, List, Optional
+from datetime import datetime
+
 import telebot
 
 # Импорт класса GPTAdapter
