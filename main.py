@@ -5,8 +5,7 @@ from datetime import datetime
 
 import telebot
 from telebot import types
-from telegram import Update
-from telegram.ext import ContextTypes
+
 
 # Импорт класса GPTAdapter
 from gpt_adapter import GPTAdapter
@@ -85,7 +84,7 @@ def save_message(message: types.Message):
 @bot.message_handler(commands=['summurize', 'summary'])
 def summarize(message: types.Message):
   try:
-    chat_id = update.effective_chat.id
+    chat_id = message.chat.id
     if chat_id not in context:
         context[chat_id] = {'calls': 0, 'last_call': None}
 
