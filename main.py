@@ -4,6 +4,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 
 import telebot
+from telebot import types
 
 # Импорт класса GPTAdapter
 from gpt_adapter import GPTAdapter
