@@ -30,7 +30,15 @@ def handler(event, context):
         'body': 'OK'
     }
     
-@bot.message_handler(commands=['summarize', 'summary'])
+def normalize_command(text, bot_username):
+    if not text:
+        return None
+    # Удаляем упоминание бота если есть
+    if text.startswith('@' + bot_username):
+        text = text.split(' ', 1)[-1]
+    return text.strip()
+
+@bot.message_handler(func=lambda m: normalize_command(m.text, bot.get_me().username) in ['/summarize', '/summary'])
 def summarize(message: types.Message):
   try:
     chat_id = message.chat.id
