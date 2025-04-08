@@ -2,15 +2,22 @@ name: Deploy to Yandex Cloud Functions
 
 on:
   push:
-    branches: [ master, main ]
-  pull_request:
-    branches: [ master, main ]
+    branches: [master, main]
+  pull_request_target:
+    types: [closed]
+    branches: [master, main]
+
 
 jobs:
   deploy:
+    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
+    - name: Debug event
+      run: |
+        echo "Event: ${{ toJson(github.event) }}"
+        echo "Merged: ${{ github.event.pull_request.merged }}"
     - name: Deploy Function
       id: sls-func
       uses: yc-actions/yc-sls-function@v2
@@ -28,6 +35,7 @@ jobs:
           YDB_ENDPOINT=${{ secrets.YDB_ENDPOINT }}
           YDB_SERVICE_ACCOUNT_TOKEN=${{ secrets.YDB_SERVICE_ACCOUNT_TOKEN }}
           YDB_SERVICE_ACCOUNT_TOKEN_ID=${{ secrets.YDB_SERVICE_ACCOUNT_TOKEN_ID }}
+          FOLDER_ID=${{ secrets.FOLDER_ID }}
         include: |
           **/*.py
           **/*.json
