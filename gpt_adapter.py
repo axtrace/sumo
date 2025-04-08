@@ -1,7 +1,7 @@
 import os
 from yandex_cloud_ml_sdk import YCloudML
 
-class aiAdapter:
+class GPTAdapter:
     
     def __init__(self):
         self.sdk = YCloudML(
