@@ -9,17 +9,16 @@ class GPTAdapter:
             auth=os.environ['API_KEY']
         )
         self.model = self.sdk.models.completions("yandexgpt", model_version="rc")
-        self.model = self.model.configure(temperature=0.8)
+        self.model = self.model.configure(temperature=0.1)
         self.model = self.model.configure(reasoning_mode='enabled_hidden')
         self.messages = [
             {
                "role": "system", 
-                          "text": """Анализируй сообщения из чата и создавай структурированное краткое содержание:
+                          "text": """Проанализируй сообщения из чата и создай структурированное краткое содержание:
               1. Выдели основные темы обсуждения и выводы
-              2. Отметь ключевых участников по имени и их позиции
+              2. Отметь ключевых участников по имени и их позиции по вопросам
               3. Укажи важные выводы или решения
-              4. Сохраняй нейтральный тон
-              5. Используй маркированные списки для наглядности"""
+              4. Используй маркированные списки для наглядности"""
             }
         ]
      
