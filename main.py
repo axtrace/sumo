@@ -13,7 +13,7 @@ from ydb_adapter import ydbAdapter
 TOKEN = os.environ['PRODUCTION_TOKEN']
 bot = telebot.TeleBot(TOKEN)
 
-ybd = ydbAdapter()
+ydb = ydbAdapter()
 
 MAX_CALLS = int(os.environ.get('MAX_CALLS', 10))
 
@@ -64,7 +64,7 @@ def save_message(message: types.Message):
         }
         
         # Сохранение сообщения
-        ybd.save_message(
+        ydb.save_message(
             chat_id=chat_id,
             user_id=user_id,
             username=username,
@@ -89,7 +89,7 @@ def summarize(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
 
     # Получение сообщений с последней синхронизации
-    messages = ybd.get_messages(chat_id)
+    messages = ydb.get_messages(chat_id)
     
     if not messages:
         bot.reply_to(message, "Нет сообщений для саммаризации")
