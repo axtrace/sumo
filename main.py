@@ -91,7 +91,7 @@ def summarize(message: types.Message):
         )
         
         gpt = GPTAdapter()
-        summary = gpt.summarize(chat_history)
+        summary = gpt.summarize(chat_history[:6000])
         
         if not summary:
             bot.reply_to(message, "❌ Ошибка генерации summary")
