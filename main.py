@@ -40,48 +40,56 @@ def normalize_command(text, bot_username):
 
 @bot.message_handler(func=lambda m: normalize_command(m.text, bot.get_me().username) in ['/summarize', '/summary'])
 def summarize(message: types.Message):
-  try:
-    chat_id = message.chat.id
-    if chat_id not in context:
-        context[chat_id] = {'calls': 0, 'last_call': None}
+    try:
+        chat_id = message.chat.id
+        user_id = message.from_user.id
+        
+        # 1. Проверяем лимиты вызовов
+        current_date = datetime.now().date()
+        usage_key = f"{chat_id}_{current_date}"
+        
+        current_usage = ydb.get_usage_today(chat_id, user_id)
+        if current_usage >= MAX_CALLS:
+            bot.reply_to(message, f"⚠️ Лимит саммаризаций исчерпан ({MAX_CALLS}/день)")
+            return
 
-    # Проверка ограничений вызовов
-    if context[chat_id]['calls'] >= MAX_CALLS:
-        bot.reply_to(message, "Достигнут суточный лимит вызовов. Попробуйте повторить запрос спустя несколько часов")
-        return
+        # 2. Получаем время последней саммаризации
+        last_summary_time = ydb.get_last_summary_time(chat_id) or datetime.fromtimestamp(0)
+        
+        # 3. Получаем новые сообщения
+        messages = ydb.get_messages_since(chat_id, last_summary_time)
+        
+        if not messages:
+            bot.reply_to(message, "🔄 Нет новых сообщений для саммаризации")
+            return
 
-    # Получение сообщений с последней синхронизации
-    messages = ydb.get_messages(chat_id)
-    
-    if not messages:
-        bot.reply_to(message, "Нет сообщений для саммаризации")
-        return
+        # 4. Генерируем summary
+        chat_history = "\n".join(
+            f"{msg['username']}: {msg['text']}" 
+            for msg in messages
+        )
+        
+        gpt = GPTAdapter()
+        summary = gpt.summarize(chat_history)
+        
+        if not summary:
+            bot.reply_to(message, "❌ Ошибка генерации summary")
+            return
 
-    chat_history = "\n".join(
-        f"{msg['username']}: {msg['text']}" 
-        for msg in reversed(messages)  # В хронологическом порядке
-    )
-      
-    # Создание экземпляра GPTAdapter
-    gpt = GPTAdapter()
+        # 5. Сохраняем результат и обновляем статистику
+        ydb.save_summary_record(chat_id, datetime.now())
+        ydb.increment_usage(chat_id, user_id)
+        
+        # 6. Отправляем пользователю (форматируем как цитаты)
+        response = f"📝 Summary ({len(messages)} новых сообщений):\n\n"
+        response += f"```\n{summary}\n```"
+        response += f"\n\n⏳ Следующая доступна через {24 - datetime.now().hour}ч"
+        
+        bot.reply_to(message, response, parse_mode='Markdown')
 
-    # Суммирование сообщений
-    summary = gpt.summarize(chat_history)
-    
-    if not summary:
-        bot.reply_to(message, "Не удалось сгенерировать summary")
-        return
-    
-    # Отправка суммирования
-    bot.reply_to(message, summary)
-
-    # Обновление контекста вызовов
-    context[chat_id]['calls'] += 1
-    context[chat_id]['last_call'] = datetime.now()
-    
-  except Exception as e:
-    print(message.text)
-    bot.reply_to(message, f"⚠️ Ошибка: {str(e)}")
+    except Exception as e:
+        logging.error(f"Summary error: {str(e)}")
+        bot.reply_to(message, "⚠️ Техническая ошибка. Попробуйте позже")
 
 
 @bot.message_handler(func=lambda message: True)
