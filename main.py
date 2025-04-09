@@ -100,8 +100,9 @@ def summarize(message: types.Message):
         
         # 5. Сохраняем результат и обновляем статистику
         ydb.save_summary_record(
-            chat_id=str(message.chat.id),  # Явное преобразование в строку
-            summary_time=datetime.now()
+            chat_id=chat_id, 
+            summary_time=datetime.now(),
+            chat_id=user_id
         )
         
         # 6. Отправляем пользователю (форматируем как цитаты)
