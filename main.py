@@ -105,6 +105,7 @@ def summarize(message: types.Message):
             chat_id=user_id
         )
         
+        
         # 6. Отправляем пользователю (форматируем как цитаты)
         response = f"📝 Summary ({len(messages)} новых сообщений):\n\n"
         response += f"```\n{summary}\n```"
