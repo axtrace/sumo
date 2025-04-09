@@ -22,13 +22,15 @@ MAX_CALLS = int(os.environ.get('MAX_CALLS', 30))
 # Контекст для хранения ограничений вызовов
 context = {}
 
+@telegram_error_handler
 def handler(event, context):
-    message = telebot.types.Update.de_json(event['body'])
-    bot.process_new_updates([message])
-    return {
-        'statusCode': 200,
-        'body': 'OK'
-    }
+    try:
+        message = telebot.types.Update.de_json(event['body'])
+        bot.process_new_updates([message])
+        return {'statusCode': 200, 'body': 'OK'}
+    except Exception as e:
+        logger.error(f"Handler error: {str(e)}", exc_info=True)
+        return {'statusCode': 500, 'body': 'Error'}
     
 def normalize_command(text, bot_username):
     if not text:
@@ -39,6 +41,7 @@ def normalize_command(text, bot_username):
     return text.strip()
 
 @bot.message_handler(func=lambda m: normalize_command(m.text, bot.get_me().username) in ['/summarize', '/summary'])
+@telegram_error_handler
 def summarize(message: types.Message):
     try:
         chat_id = message.chat.id
@@ -87,11 +90,12 @@ def summarize(message: types.Message):
         bot.reply_to(message, response, parse_mode='Markdown')
 
     except Exception as e:
-        logging.error(f"Summary error: {str(e)}")
+        print(f"Summary error: {str(e)}")
         bot.reply_to(message, "⚠️ Техническая ошибка. Попробуйте позже")
 
 
 @bot.message_handler(func=lambda message: True)
+@telegram_error_handler
 def save_message(message: types.Message):
     """Сохраняет все входящие сообщения в ydb"""
     try:
