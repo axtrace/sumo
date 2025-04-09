@@ -39,6 +39,7 @@ jobs:
           YDB_SERVICE_ACCOUNT_TOKEN_ID=${{ secrets.YDB_SERVICE_ACCOUNT_TOKEN_ID }}
           FOLDER_ID=${{ secrets.FOLDER_ID }}
           API_KEY=${{ secrets.API_KEY }}
+          CLOUD_ENV=1
         include: |
           **/*.py
           **/*.json
