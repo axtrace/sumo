@@ -144,3 +144,50 @@ class YdbAdapter:
             print(f"Failed to get messages: {e}")
             raise
 
+    def get_last_summary_time(self, chat_id: int) -> Optional[datetime]:
+        """Возвращает время последней саммаризации для чата"""
+        query = """
+        DECLARE $chat_id AS Int64;
+        
+        SELECT MAX(summary_time) as last_time 
+        FROM chat_summary_history
+        WHERE chat_id = $chat_id;
+        """
+        
+        result = self.execute_query(query, {'$chat_id': chat_id})
+        if result[0].rows and result[0].rows[0].last_time:
+            return datetime.fromtimestamp(result[0].rows[0].last_time)
+        return None
+
+    def save_summary_record(self, chat_id: int, summary_time: datetime):
+        """Сохраняет запись о выполненной саммаризации"""
+        query = """
+        DECLARE $chat_id AS Int64;
+        DECLARE $summary_time AS Int64;
+        
+        UPSERT INTO chat_summary_history (chat_id, summary_time)
+        VALUES ($chat_id, $summary_time);
+        """
+        
+        self.execute_query(query, {
+            '$chat_id': chat_id,
+            '$summary_time': int(summary_time.timestamp())
+        })
+
+    def get_messages_since(self, chat_id: int, since: datetime) -> List[Dict[str, Any]]:
+        """Возвращает сообщения после указанной даты"""
+        query = """
+        DECLARE $chat_id AS Int64;
+        DECLARE $since_date AS Int64;
+        
+        SELECT * FROM chat_messages
+        WHERE chat_id = $chat_id AND date > $since_date
+        ORDER BY date ASC;
+        """
+        
+        result = self.execute_query(query, {
+            '$chat_id': chat_id,
+            '$since_date': int(since.timestamp())
+        })
+        
+        return [dict(row) for row in result[0].rows]
