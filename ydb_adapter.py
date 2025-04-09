@@ -193,12 +193,12 @@ class YdbAdapter:
                 raw
             FROM chat_messages
             WHERE chat_id = $chat_id 
-              AND date > $since_date
+              AND date > CAST($since_date AS Timestamp)
             ORDER BY date ASC;
             """
             
             result = self.execute_query(query, {
-                '$chat_id': chat_id,
+                '$chat_id': int(chat_id),
                 '$since_date': int(since.timestamp())
             })
             
@@ -226,26 +226,27 @@ class YdbAdapter:
         """Возвращает количество саммаризаций за последние N часов"""
         try:
             hours_limit = max(1, int(os.getenv('SUMMARY_HOURS_LIMIT', '24')))
-            time_threshold = int((datetime.now(timezone.utc) - timedelta(hours=hours_limit)).timestamp())
+            time_threshold = datetime.now(timezone.utc) - timedelta(hours=hours_limit)
             
             query = """
             DECLARE $chat_id AS Int64;
             DECLARE $time_threshold AS Int64;
             
-            SELECT COUNT(*) AS usage_count 
+            SELECT COUNT(*) as usage_count 
             FROM chat_summary_history
             WHERE chat_id = $chat_id
-              AND summary_time >= $time_threshold;
+              AND summary_time >= CAST($time_threshold AS Timestamp);
             """
             
-            params = {
-                '$chat_id': chat_id,
-                '$time_threshold': time_threshold
-            }
+            result = self.execute_query(query, {
+                '$chat_id': int(chat_id),
+                '$time_threshold': int(time_threshold.timestamp())
+            })
             
-            result = self.execute_query(query, params)
-            return int(result[0].rows[0].usage_count) if result and result[0].rows else 0
-            
+            if not result or not result[0].rows:
+                return 0
+            return int(result[0].rows[0].get('usage_count', 0))
+          
         except Exception as e:
             print(f"Usage count error: {e}")
             return 0
