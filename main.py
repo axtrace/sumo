@@ -22,6 +22,23 @@ MAX_CALLS = int(os.environ.get('MAX_CALLS', 30))
 # Контекст для хранения ограничений вызовов
 context = {}
 
+# Декоратор для обработки ошибок
+def telegram_error_handler(f):
+    @wraps(f)
+    def wrapped(*args, **kwargs):
+        try:
+            return f(*args, **kwargs)
+        except Exception as e:
+            logger.error(f"Error in {f.__name__}: {str(e)}", exc_info=True)
+            if args and isinstance(args[0], types.Message):
+                try:
+                    args[0].reply_text("⚠️ Произошла ошибка. Пожалуйста, попробуйте позже")
+                except Exception as send_error:
+                    print(f"Failed to send error message: {send_error}")
+            return None
+    return wrapped
+
+
 @telegram_error_handler
 def handler(event, context):
     try:
