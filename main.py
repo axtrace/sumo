@@ -17,7 +17,7 @@ bot = telebot.TeleBot(TOKEN)
 
 ydb = YdbAdapter()
 
-MAX_CALLS = int(os.environ.get('MAX_CALLS', 10))
+MAX_CALLS = int(os.environ.get('MAX_CALLS', 30))
 
 # Контекст для хранения ограничений вызовов
 context = {}
@@ -48,7 +48,7 @@ def summarize(message: types.Message):
         current_date = datetime.now().date()
         usage_key = f"{chat_id}_{current_date}"
         
-        current_usage = ydb.get_usage_today(chat_id, user_id)
+        current_usage = ydb.get_usage_today(chat_id)
         if current_usage >= MAX_CALLS:
             bot.reply_to(message, f"⚠️ Лимит саммаризаций исчерпан ({MAX_CALLS}/день)")
             return
@@ -83,7 +83,6 @@ def summarize(message: types.Message):
         # 6. Отправляем пользователю (форматируем как цитаты)
         response = f"📝 Summary ({len(messages)} новых сообщений):\n\n"
         response += f"```\n{summary}\n```"
-        response += f"\n\n⏳ Следующая доступна через {24 - datetime.now().hour}ч"
         
         bot.reply_to(message, response, parse_mode='Markdown')
 
