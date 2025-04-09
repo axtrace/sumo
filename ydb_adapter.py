@@ -160,19 +160,22 @@ class YdbAdapter:
         return None
 
     def save_summary_record(self, chat_id: int, summary_time: datetime):
-        """Сохраняет запись о выполненной саммаризации"""
         query = """
-        DECLARE $chat_id AS Int64;
-        DECLARE $summary_time AS Int64;
+        DECLARE $chat_id AS Utf8;
+        DECLARE $summary_id AS Utf8;
+        DECLARE $summary_time AS Timestamp;
         
-        UPSERT INTO chat_summary_history (chat_id, summary_time)
-        VALUES ($chat_id, $summary_time);
+        UPSERT INTO chat_summary_history 
+        (chat_id, summary_id, summary_time)
+        VALUES ($chat_id, $summary_id, $summary_time);
         """
         
         self.execute_query(query, {
-            '$chat_id': chat_id,
-            '$summary_time': int(summary_time.timestamp())
+            '$chat_id': str(chat_id),
+            '$summary_id': str(uuid.uuid4()),  # Генерация ID
+            '$summary_time': summary_time  # datetime автоматически конвертируется
         })
+
 
     def get_messages_since(self, chat_id: int, since: datetime) -> List[Dict[str, Any]]:
         """Возвращает сообщения после указанной даты"""
@@ -221,32 +224,30 @@ class YdbAdapter:
             print(f"Get messages error: {e}")
             return []
 
-    
+        
     def get_usage_today(self, chat_id: int) -> int:
-        """Возвращает количество саммаризаций за последние N часов"""
         try:
             hours_limit = max(1, int(os.getenv('SUMMARY_HOURS_LIMIT', '24')))
             time_threshold = datetime.now(timezone.utc) - timedelta(hours=hours_limit)
             
             query = """
-            DECLARE $chat_id AS Int64;
-            DECLARE $time_threshold AS Int64;
+            DECLARE $chat_id AS Utf8;  # Изменено на Utf8
+            DECLARE $time_threshold AS Timestamp;
             
             SELECT COUNT(*) as usage_count 
             FROM chat_summary_history
             WHERE chat_id = $chat_id
-              AND summary_time >= CAST($time_threshold AS Timestamp);
+              AND summary_time >= $time_threshold;  # Без CAST, т.к. типы совпадают
             """
             
             result = self.execute_query(query, {
-                '$chat_id': int(chat_id),
-                '$time_threshold': int(time_threshold.timestamp())
+                '$chat_id': str(chat_id),  # Явное преобразование в строку
+                '$time_threshold': time_threshold  # Передаем datetime напрямую
             })
             
-            if not result or not result[0].rows:
-                return 0
-            return int(result[0].rows[0].get('usage_count', 0))
-          
+            return int(result[0].rows[0].usage_count) if result[0].rows else 0
+            
         except Exception as e:
-            print(f"Usage count error: {e}")
+            print(f"Error: {e}")
             return 0
+    
