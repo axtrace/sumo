@@ -176,39 +176,61 @@ class YdbAdapter:
 
     def get_messages_since(self, chat_id: int, since: datetime) -> List[Dict[str, Any]]:
         """Возвращает сообщения после указанной даты"""
-        query = """
-        DECLARE $chat_id AS Int64;
-        DECLARE $since_date AS Int64;
-        
-        SELECT * FROM chat_messages
-        WHERE chat_id = $chat_id AND date > $since_date
-        ORDER BY date ASC;
-        """
-        
-        result = self.execute_query(query, {
-            '$chat_id': chat_id,
-            '$since_date': int(since.timestamp())
-        })
-        
-        return [dict(row) for row in result[0].rows]
+        try:
+            query = """
+            DECLARE $chat_id AS Int64;
+            DECLARE $since_date AS Int64;
+            
+            SELECT 
+                id,
+                chat_id,
+                user_id,
+                username,
+                first_name,
+                last_name,
+                date,
+                text,
+                raw
+            FROM chat_messages
+            WHERE chat_id = $chat_id 
+              AND date > $since_date
+            ORDER BY date ASC;
+            """
+            
+            result = self.execute_query(query, {
+                '$chat_id': chat_id,
+                '$since_date': int(since.timestamp())
+            })
+            
+            messages = []
+            for row in result[0].rows:
+                messages.append({
+                    'id': row.id,
+                    'chat_id': row.chat_id,
+                    'user_id': row.user_id,
+                    'username': row.username,
+                    'first_name': row.first_name,
+                    'last_name': row.last_name,
+                    'date': datetime.fromtimestamp(row.date),
+                    'text': row.text,
+                    'raw': json.loads(row.raw) if row.raw else None
+                })
+            return messages
+            
+        except Exception as e:
+            logging.error(f"Get messages error: {e}")
+            return []
 
     
     def get_usage_today(self, chat_id: int) -> int:
-        """Возвращает количество саммаризаций за последние N часов (по умолчанию 24)"""
+        """Возвращает количество саммаризаций за последние N часов"""
         try:
-            # Конфигурируемый период через переменные окружения
-            hours_limit = int(os.getenv('SUMMARY_HOURS_LIMIT', '24').strip())
-            if hours_limit <= 0:
-                hours_limit = 24  # Защита от некорректных значений
-                
-            # Текущее время с учетом часового пояса UTC
-            now = datetime.now(timezone.utc)
-            time_threshold = now - timedelta(hours=hours_limit)
+            hours_limit = max(1, int(os.getenv('SUMMARY_HOURS_LIMIT', '24')))
+            time_threshold = int((datetime.now(timezone.utc) - timedelta(hours=hours_limit)).timestamp())
             
-            # Оптимизированный запрос с параметрами
             query = """
             DECLARE $chat_id AS Int64;
-            DECLARE $time_threshold AS Int64;  -- Используем Int64 для timestamp
+            DECLARE $time_threshold AS Int64;
             
             SELECT COUNT(*) AS usage_count 
             FROM chat_summary_history
@@ -216,20 +238,14 @@ class YdbAdapter:
               AND summary_time >= $time_threshold;
             """
             
-            result = self.execute_query(query, {
-                '$chat_id': int(chat_id),
-                '$time_threshold': int(time_threshold.timestamp())  # Явное преобразование
-            })
+            params = {
+                '$chat_id': chat_id,
+                '$time_threshold': time_threshold
+            }
             
-            # Безопасное извлечение результата
-            if not result or not result[0].rows:
-                return 0
-            return int(result[0].rows[0].get('usage_count', 0))
+            result = self.execute_query(query, params)
+            return int(result[0].rows[0].usage_count) if result and result[0].rows else 0
             
-        except (ValueError, TypeError) as e:
-            print(f"Configuration error: {e}")
-            return 0
         except Exception as e:
-            print(f"Database error: {e}")
+            logging.error(f"Usage count error: {e}")
             return 0
-
