@@ -191,3 +191,33 @@ class YdbAdapter:
         })
         
         return [dict(row) for row in result[0].rows]
+
+
+    def get_usage_today(self, chat_id: int) -> int:
+        """Возвращает количество саммаризаций за последние N часов для указанного чата"""
+        try:
+            # Получаем лимит часов из переменной окружения (по умолчанию 24)
+            hours_limit = int(os.getenv('SUMMARY_HOURS_LIMIT', 24))
+            time_threshold = datetime.now() - timedelta(hours=hours_limit)
+            
+            query = """
+            DECLARE $chat_id AS Int64;
+            DECLARE $time_threshold AS Timestamp;
+            
+            SELECT COUNT(*) as usage_count 
+            FROM chat_summary_history
+            WHERE chat_id = $chat_id
+              AND summary_time >= $time_threshold;
+            """
+            
+            result = self.execute_query(query, {
+                '$chat_id': int(chat_id),
+                '$time_threshold': time_threshold
+            })
+            
+            return result[0].rows[0].usage_count if result[0].rows else 0
+            
+        except Exception as e:
+            print(f"Error getting usage count: {e}")
+            return 0  # В случае ошибки считаем, что вызовов не было
+
