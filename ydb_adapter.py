@@ -144,3 +144,80 @@ class YdbAdapter:
             print(f"Failed to get messages: {e}")
             raise
 
+    def get_last_summary_time(self, chat_id: int) -> Optional[datetime]:
+        """Возвращает время последней саммаризации для чата"""
+        query = """
+        DECLARE $chat_id AS Int64;
+        
+        SELECT MAX(summary_time) as last_time 
+        FROM chat_summary_history
+        WHERE chat_id = $chat_id;
+        """
+        
+        result = self.execute_query(query, {'$chat_id': chat_id})
+        if result[0].rows and result[0].rows[0].last_time:
+            return datetime.fromtimestamp(result[0].rows[0].last_time)
+        return None
+
+    def save_summary_record(self, chat_id: int, summary_time: datetime):
+        """Сохраняет запись о выполненной саммаризации"""
+        query = """
+        DECLARE $chat_id AS Int64;
+        DECLARE $summary_time AS Int64;
+        
+        UPSERT INTO chat_summary_history (chat_id, summary_time)
+        VALUES ($chat_id, $summary_time);
+        """
+        
+        self.execute_query(query, {
+            '$chat_id': chat_id,
+            '$summary_time': int(summary_time.timestamp())
+        })
+
+    def get_messages_since(self, chat_id: int, since: datetime) -> List[Dict[str, Any]]:
+        """Возвращает сообщения после указанной даты"""
+        query = """
+        DECLARE $chat_id AS Int64;
+        DECLARE $since_date AS Int64;
+        
+        SELECT * FROM chat_messages
+        WHERE chat_id = $chat_id AND date > $since_date
+        ORDER BY date ASC;
+        """
+        
+        result = self.execute_query(query, {
+            '$chat_id': chat_id,
+            '$since_date': int(since.timestamp())
+        })
+        
+        return [dict(row) for row in result[0].rows]
+
+
+    def get_usage_today(self, chat_id: int) -> int:
+        """Возвращает количество саммаризаций за последние N часов для указанного чата"""
+        try:
+            # Получаем лимит часов из переменной окружения (по умолчанию 24)
+            hours_limit = int(os.getenv('SUMMARY_HOURS_LIMIT', 24))
+            time_threshold = datetime.now() - timedelta(hours=hours_limit)
+            
+            query = """
+            DECLARE $chat_id AS Int64;
+            DECLARE $time_threshold AS Timestamp;
+            
+            SELECT COUNT(*) as usage_count 
+            FROM chat_summary_history
+            WHERE chat_id = $chat_id
+              AND summary_time >= $time_threshold;
+            """
+            
+            result = self.execute_query(query, {
+                '$chat_id': int(chat_id),
+                '$time_threshold': time_threshold
+            })
+            
+            return result[0].rows[0].usage_count if result[0].rows else 0
+            
+        except Exception as e:
+            print(f"Error getting usage count: {e}")
+            return 0  # В случае ошибки считаем, что вызовов не было
+
