@@ -208,9 +208,9 @@ class YdbAdapter:
             # Оптимизированный запрос с параметрами
             query = """
             DECLARE $chat_id AS Int64;
-            DECLARE $time_threshold AS Timestamp;
+            DECLARE $time_threshold AS Int64;  -- Используем Int64 для timestamp
             
-            SELECT COUNT(*) as usage_count 
+            SELECT COUNT(*) AS usage_count 
             FROM chat_summary_history
             WHERE chat_id = $chat_id
               AND summary_time >= $time_threshold;
@@ -218,17 +218,18 @@ class YdbAdapter:
             
             result = self.execute_query(query, {
                 '$chat_id': int(chat_id),
-                '$time_threshold': int(time_threshold.timestamp())
+                '$time_threshold': int(time_threshold.timestamp())  # Явное преобразование
             })
             
             # Безопасное извлечение результата
-            return result[0].rows[0].usage_count if result[0].rows and hasattr(result[0].rows[0], 'usage_count') else 0
+            if not result or not result[0].rows:
+                return 0
+            return int(result[0].rows[0].get('usage_count', 0))
             
-        except ValueError as ve:
-            print(f"Invalid hours limit: {ve}")
+        except (ValueError, TypeError) as e:
+            print(f"Configuration error: {e}")
             return 0
         except Exception as e:
             print(f"Database error: {e}")
             return 0
-    
 
