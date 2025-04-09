@@ -11,8 +11,8 @@ class YdbAdapter:
         self.driver = ydb.Driver(
             endpoint=os.getenv('YDB_ENDPOINT'),
             database=os.getenv('YDB_DATABASE'),
-            # credentials=ydb.iam.ServiceAccountCredentials.from_file(YDB_SERVICE_ACCOUNT_KEY_FILE)
-            credentials = ydb.iam.MetadataUrlCredentials()
+            credentials=ydb.iam.ServiceAccountCredentials.from_file(YDB_SERVICE_ACCOUNT_KEY_FILE)
+            # credentials = ydb.iam.MetadataUrlCredentials()
         )
         self.driver.wait(timeout=5, fail_fast=True)
         self.pool = ydb.SessionPool(self.driver)
@@ -20,7 +20,6 @@ class YdbAdapter:
     def _prepare_and_execute(self, session, query, parameters):
         # 1. Подготавливаем запрос
         prepared = session.prepare(query)
-        print("Query prepared successfully")
         
         # 2. Выполняем с параметрами
         return session.transaction().execute(
@@ -36,7 +35,7 @@ class YdbAdapter:
             result = self.pool.retry_operation_sync(callee)
             return result
         except Exception as e:
-            # print(f"Query failed: {str(e)}")
+            print(f"Query failed: {str(e)}\n query:{query}\n parameters:{parameters}")
             raise
 
     def save_message(self, chat_id: int, user_id: int, username: str, first_name: str, last_name: str,
@@ -158,23 +157,42 @@ class YdbAdapter:
         if result[0].rows and result[0].rows[0].last_time:
             return datetime.fromtimestamp(result[0].rows[0].last_time)
         return None
-
-    def save_summary_record(self, chat_id: int, summary_time: datetime):
-        query = """
-        DECLARE $chat_id AS Utf8;
-        DECLARE $summary_id AS Utf8;
-        DECLARE $summary_time AS Timestamp;
+            
+    def save_summary_record(self, chat_id: int, summary_time: datetime, user_id: int):
+        """Сохраняет запись саммаризации в таблицу chat_summary_history"""
+        try:
+            # Генерация уникального идентификатора для summary_id
+            summary_id = str(uuid.uuid4())
+            
+            query = """
+                DECLARE $chat_id AS Int64;
+                DECLARE $summary_id AS Utf8;
+                DECLARE $summary_time AS Timestamp;
+                DECLARE $user_id AS Int64;
+    
+                UPSERT INTO chat_summary_history 
+                (chat_id, summary_id, summary_time, user_id)
+                VALUES ($chat_id, $summary_id, $summary_time, $user_id);
+            """
+    
+            # Параметры запроса
+            params = {
+                '$chat_id': int(chat_id),  # Убедитесь, что передается как Int64
+                '$summary_id': summary_id,  # Передаем как Utf8
+                '$summary_time': int(summary_time.timestamp()),  # Передаем как Unix Timestamp целое число
+                '$user_id': int(user_id)  # Убедитесь, что передается как Int64
+            }
+    
+            # Выполнение запроса
+            self.execute_query(query, params)
+    
+        except Exception as e:
+            print(f"Error while saving summary record: {e}")
+            raise
+    
         
-        UPSERT INTO chat_summary_history 
-        (chat_id, summary_id, summary_time)
-        VALUES ($chat_id, $summary_id, $summary_time);
-        """
-        
-        self.execute_query(query, {
-            '$chat_id': str(chat_id),
-            '$summary_id': str(uuid.uuid4()),  # Генерация ID
-            '$summary_time': summary_time  # datetime автоматически конвертируется
-        })
+            
+    
 
     def get_messages_since(self, chat_id: int, since: datetime) -> List[Dict[str, Any]]:
         """Возвращает сообщения после указанной даты"""
@@ -222,32 +240,53 @@ class YdbAdapter:
         except Exception as e:
             print(f"Get messages error: {e}")
             return []
-
-        
+                
     def get_usage_today(self, chat_id: int) -> int:
         """Возвращает количество саммаризаций за последние N часов"""
         try:
+            # Лимит времени для выборки
             hours_limit = max(1, int(os.getenv('SUMMARY_HOURS_LIMIT', '24')))
             time_threshold = datetime.now(timezone.utc) - timedelta(hours=hours_limit)
-            
+    
+            # SQL-запрос с параметрами
             query = """
-            DECLARE $chat_id AS Utf8;  # Тип должен совпадать с объявлением в схеме
-            DECLARE $time_threshold AS Timestamp;
-            
-            SELECT COUNT(*) as usage_count 
-            FROM chat_summary_history
-            WHERE chat_id = $chat_id
-              AND summary_time >= $time_threshold;
+                DECLARE $chat_id AS Int64;
+                DECLARE $time_threshold AS Timestamp;
+    
+                SELECT COUNT(*) AS usage_count
+                FROM chat_summary_history
+                WHERE chat_id = $chat_id
+                  AND summary_time >= $time_threshold;
             """
-            
-            result = self.execute_query(query, {
-                '$chat_id': str(chat_id),  # Явное преобразование в строку
-                '$time_threshold': time_threshold  # YDB SDK автоматически конвертирует datetime в Timestamp
-            })
-            
-            return int(result[0].rows[0].usage_count) if result[0].rows else 0
-            
+    
+            # Параметры запроса
+            params = {
+                '$chat_id': chat_id,  # Преобразуем chat_id в целое число для соответствия типу Int64
+                '$time_threshold': time_threshold.isoformat()  # ISO 8601 формат для Timestamp
+            }
+    
+            # Выполнение запроса
+            result = self.execute_query(query, params)
+    
+            # Логирование результата для отладки
+            print(f"Query result: {result}")
+    
+            # Обработка результата
+            if result and result[0].rows:
+                usage_count = result[0].rows[0].get('usage_count', 0)
+    
+                # Проверяем тип usage_count и преобразуем его в целое число при необходимости
+                if isinstance(usage_count, str):
+                    try:
+                        usage_count = int(usage_count)
+                    except ValueError:
+                        print(f"Error converting usage_count to int: {usage_count}")
+                        return 0
+    
+                return usage_count
+    
+            return 0  # Если нет строк в результате
+    
         except Exception as e:
             print(f"Error: {e}")
             return 0
-    
