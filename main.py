@@ -102,7 +102,7 @@ def summarize(message: types.Message):
         ydb.save_summary_record(
             chat_id=chat_id, 
             summary_time=datetime.now(),
-            chat_id=user_id
+            user_id=user_id
         )
         
         
