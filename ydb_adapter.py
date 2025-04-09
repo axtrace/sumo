@@ -3,7 +3,7 @@ import ydb
 import ydb.iam
 import json
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, List, Optional
 
 class YdbAdapter:
@@ -192,14 +192,20 @@ class YdbAdapter:
         
         return [dict(row) for row in result[0].rows]
 
-
+    
     def get_usage_today(self, chat_id: int) -> int:
-        """Возвращает количество саммаризаций за последние N часов для указанного чата"""
+        """Возвращает количество саммаризаций за последние N часов (по умолчанию 24)"""
         try:
-            # Получаем лимит часов из переменной окружения (по умолчанию 24)
-            hours_limit = int(os.getenv('SUMMARY_HOURS_LIMIT', 24))
-            time_threshold = datetime.now() - timedelta(hours=hours_limit)
+            # Конфигурируемый период через переменные окружения
+            hours_limit = int(os.getenv('SUMMARY_HOURS_LIMIT', '24').strip())
+            if hours_limit <= 0:
+                hours_limit = 24  # Защита от некорректных значений
+                
+            # Текущее время с учетом часового пояса UTC
+            now = datetime.now(timezone.utc)
+            time_threshold = now - timedelta(hours=hours_limit)
             
+            # Оптимизированный запрос с параметрами
             query = """
             DECLARE $chat_id AS Int64;
             DECLARE $time_threshold AS Timestamp;
@@ -212,12 +218,17 @@ class YdbAdapter:
             
             result = self.execute_query(query, {
                 '$chat_id': int(chat_id),
-                '$time_threshold': time_threshold
+                '$time_threshold': int(time_threshold.timestamp())
             })
             
-            return result[0].rows[0].usage_count if result[0].rows else 0
+            # Безопасное извлечение результата
+            return result[0].rows[0].usage_count if result[0].rows and hasattr(result[0].rows[0], 'usage_count') else 0
             
+        except ValueError as ve:
+            print(f"Invalid hours limit: {ve}")
+            return 0
         except Exception as e:
-            print(f"Error getting usage count: {e}")
-            return 0  # В случае ошибки считаем, что вызовов не было
+            print(f"Database error: {e}")
+            return 0
+    
 
