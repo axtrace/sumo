@@ -4,7 +4,7 @@ import ydb.iam
 import json
 import uuid
 from datetime import datetime
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 class YdbAdapter:
     def __init__(self):
@@ -144,7 +144,7 @@ class YdbAdapter:
             print(f"Failed to get messages: {e}")
             raise
 
-    def get_last_summary_time(self, chat_id: int) -> Optional[datetime]:
+    def get_last_summary_time(self, chat_id: int) -> datetime | None:
         """Возвращает время последней саммаризации для чата"""
         query = """
         DECLARE $chat_id AS Int64;
