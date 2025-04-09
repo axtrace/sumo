@@ -218,7 +218,7 @@ class YdbAdapter:
             return messages
             
         except Exception as e:
-            logging.error(f"Get messages error: {e}")
+            print(f"Get messages error: {e}")
             return []
 
     
@@ -247,5 +247,5 @@ class YdbAdapter:
             return int(result[0].rows[0].usage_count) if result and result[0].rows else 0
             
         except Exception as e:
-            logging.error(f"Usage count error: {e}")
+            print(f"Usage count error: {e}")
             return 0
