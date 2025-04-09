@@ -97,9 +97,12 @@ def summarize(message: types.Message):
             bot.reply_to(message, "❌ Ошибка генерации summary")
             return
 
+        
         # 5. Сохраняем результат и обновляем статистику
-        ydb.save_summary_record(chat_id, datetime.now())
-        ydb.increment_usage(chat_id, user_id)
+        ydb.save_summary_record(
+            chat_id=str(message.chat.id),  # Явное преобразование в строку
+            summary_time=datetime.now()
+        )
         
         # 6. Отправляем пользователю (форматируем как цитаты)
         response = f"📝 Summary ({len(messages)} новых сообщений):\n\n"
