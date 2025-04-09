@@ -8,11 +8,15 @@ from typing import Dict, Any, List, Optional
 
 class YdbAdapter:
     def __init__(self):
+        if os.getenv('CLOUD_ENV'):
+            env_credentials = ydb.iam.MetadataUrlCredentials()
+        else:
+            env_credentials=ydb.iam.ServiceAccountCredentials.from_file(YDB_SERVICE_ACCOUNT_KEY_FILE)
+        
         self.driver = ydb.Driver(
             endpoint=os.getenv('YDB_ENDPOINT'),
             database=os.getenv('YDB_DATABASE'),
-            # credentials=ydb.iam.ServiceAccountCredentials.from_file(YDB_SERVICE_ACCOUNT_KEY_FILE)
-            credentials = ydb.iam.MetadataUrlCredentials()
+            credentials=env_credentials
         )
         self.driver.wait(timeout=5, fail_fast=True)
         self.pool = ydb.SessionPool(self.driver)
@@ -190,17 +194,14 @@ class YdbAdapter:
             print(f"Error while saving summary record: {e}")
             raise
     
-        
             
-    
-
     def get_messages_since(self, chat_id: int, since: datetime) -> List[Dict[str, Any]]:
         """Возвращает сообщения после указанной даты"""
         try:
             query = """
             DECLARE $chat_id AS Int64;
-            DECLARE $since_date AS Timestamp;
-            
+            DECLARE $since_date AS Datetime;
+    
             SELECT 
                 id,
                 chat_id,
@@ -212,15 +213,24 @@ class YdbAdapter:
                 text,
                 raw
             FROM chat_messages
-            WHERE chat_id = CAST($chat_id AS Int64)  # Явное приведение типа
+            WHERE chat_id = $chat_id
               AND date > $since_date
             ORDER BY date ASC;
             """
             
-            result = self.execute_query(query, {
+            # Преобразуем `since` в Unix Timestamp, преобразованный в секунды
+            unix_timestamp = int(since.timestamp())
+            
+            parameters = {
                 '$chat_id': chat_id,
-                '$since_date': since  # Передаем datetime напрямую
-            })
+                '$since_date': unix_timestamp
+            }
+    
+            # Логирование для отладки
+            print(f"Querying messages since {since} (timestamp: {unix_timestamp}) for chat_id {chat_id}")
+            
+            # Выполнение запроса
+            result = self.execute_query(query, parameters)
             
             messages = []
             for row in result[0].rows:
@@ -231,7 +241,8 @@ class YdbAdapter:
                     'username': row.username,
                     'first_name': row.first_name,
                     'last_name': row.last_name,
-                    'date': datetime.fromtimestamp(row.date),
+                    # Предполагая, что 'row.date' уже объект datetime
+                    'date': row.date,
                     'text': row.text,
                     'raw': json.loads(row.raw) if row.raw else None
                 })
@@ -240,6 +251,7 @@ class YdbAdapter:
         except Exception as e:
             print(f"Get messages error: {e}")
             return []
+
                 
     def get_usage_today(self, chat_id: int) -> int:
         """Возвращает количество саммаризаций за последние N часов"""
