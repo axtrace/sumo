@@ -176,13 +176,12 @@ class YdbAdapter:
             '$summary_time': summary_time  # datetime автоматически конвертируется
         })
 
-
     def get_messages_since(self, chat_id: int, since: datetime) -> List[Dict[str, Any]]:
         """Возвращает сообщения после указанной даты"""
         try:
             query = """
             DECLARE $chat_id AS Int64;
-            DECLARE $since_date AS Int64;
+            DECLARE $since_date AS Timestamp;
             
             SELECT 
                 id,
@@ -195,14 +194,14 @@ class YdbAdapter:
                 text,
                 raw
             FROM chat_messages
-            WHERE chat_id = $chat_id 
-              AND date > CAST($since_date AS Timestamp)
+            WHERE chat_id = CAST($chat_id AS Int64)  # Явное приведение типа
+              AND date > $since_date
             ORDER BY date ASC;
             """
             
             result = self.execute_query(query, {
-                '$chat_id': int(chat_id),
-                '$since_date': int(since.timestamp())
+                '$chat_id': chat_id,
+                '$since_date': since  # Передаем datetime напрямую
             })
             
             messages = []
@@ -226,23 +225,24 @@ class YdbAdapter:
 
         
     def get_usage_today(self, chat_id: int) -> int:
+        """Возвращает количество саммаризаций за последние N часов"""
         try:
             hours_limit = max(1, int(os.getenv('SUMMARY_HOURS_LIMIT', '24')))
             time_threshold = datetime.now(timezone.utc) - timedelta(hours=hours_limit)
             
             query = """
-            DECLARE $chat_id AS Utf8;  # Изменено на Utf8
+            DECLARE $chat_id AS Utf8;  # Тип должен совпадать с объявлением в схеме
             DECLARE $time_threshold AS Timestamp;
             
             SELECT COUNT(*) as usage_count 
             FROM chat_summary_history
             WHERE chat_id = $chat_id
-              AND summary_time >= $time_threshold;  # Без CAST, т.к. типы совпадают
+              AND summary_time >= $time_threshold;
             """
             
             result = self.execute_query(query, {
                 '$chat_id': str(chat_id),  # Явное преобразование в строку
-                '$time_threshold': time_threshold  # Передаем datetime напрямую
+                '$time_threshold': time_threshold  # YDB SDK автоматически конвертирует datetime в Timestamp
             })
             
             return int(result[0].rows[0].usage_count) if result[0].rows else 0
