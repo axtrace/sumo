@@ -107,8 +107,8 @@ def summarize(message: types.Message):
         
         
         # 6. Отправляем пользователю (форматируем как цитаты)
-        response = f"📝 Summary ({len(messages)} новых сообщений):\n\n"
-        response += f"```\n{summary}\n```"
+        response = f"📝 Саммари ({len(messages)} свежих сообщений):\n\n"
+        response += f"{summary}"
         
         bot.reply_to(message, response, parse_mode='Markdown')
 
