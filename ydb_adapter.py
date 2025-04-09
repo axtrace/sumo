@@ -215,7 +215,7 @@ class YdbAdapter:
             FROM chat_messages
             WHERE chat_id = $chat_id
               AND date > $since_date
-            ORDER BY date ASC;
+            ORDER BY date DESC;
             """
             
             # Преобразуем `since` в Unix Timestamp, преобразованный в секунды
