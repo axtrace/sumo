@@ -273,8 +273,8 @@ class YdbAdapter:
     
             # Параметры запроса
             params = {
-                '$chat_id': chat_id,  # Преобразуем chat_id в целое число для соответствия типу Int64
-                '$time_threshold': time_threshold.isoformat()  # ISO 8601 формат для Timestamp
+                '$chat_id': int(chat_id),  # Преобразуем chat_id в целое число для соответствия типу Int64
+                '$time_threshold': int(time_threshold.timestamp())  # Unix timestamp как целое число
             }
     
             # Выполнение запроса

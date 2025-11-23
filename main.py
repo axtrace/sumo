@@ -1,5 +1,4 @@
 import os
-import json
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 from functools import wraps
@@ -30,7 +29,7 @@ def telegram_error_handler(f):
         try:
             return f(*args, **kwargs)
         except Exception as e:
-            logger.error(f"Error in {f.__name__}: {str(e)}", exc_info=True)
+            print(f"Error in {f.__name__}: {str(e)}")
             if args and isinstance(args[0], types.Message):
                 try:
                     args[0].reply_text("⚠️ Произошла ошибка. Пожалуйста, попробуйте позже")
@@ -47,7 +46,7 @@ def handler(event, context):
         bot.process_new_updates([message])
         return {'statusCode': 200, 'body': 'OK'}
     except Exception as e:
-        logger.error(f"Handler error: {str(e)}", exc_info=True)
+        print(f"Handler error: {str(e)}")
         return {'statusCode': 500, 'body': 'Error'}
     
 def normalize_command(text, bot_username):
@@ -128,9 +127,9 @@ def save_message(message: types.Message):
         chat_id = message.chat.id
         user_id = message.from_user.id
         username = message.from_user.username or ""
-        first_name = getattr(message.from_user, 'first_name', '').strip()
-        last_name = getattr(message.from_user, 'last_name', '').strip()
-        text = message.text or message.caption or ''
+        first_name = (getattr(message.from_user, 'first_name', None) or '').strip()
+        last_name = (getattr(message.from_user, 'last_name', None) or '').strip()
+        text = (message.text or message.caption or '').strip()
         message_date = datetime.fromtimestamp(message.date)
         
         # Формирование raw-данных
